@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Live Documentation Explorer</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --method-get: #10b981;
+            --method-post: #3b82f6;
+            --method-delete: #ef4444;
+            --method-put: #f59e0b;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            margin: 0;
+            padding: 2rem;
+            line-height: 1.5;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        header {
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--bg-secondary);
+            padding-bottom: 1rem;
+        }
+        h1 { margin: 0 0 0.5rem 0; font-size: 2.2rem; color: var(--text-main); }
+        .subtitle { color: var(--text-muted); margin: 0; }
+        .route-card {
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        .badge {
+            font-family: monospace;
+            font-weight: bold;
+            font-size: 0.9rem;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            min-width: 70px;
+            text-align: center;
+            color: #ffffff;
+        }
+        .GET { background-color: var(--method-get); }
+        .POST { background-color: var(--method-post); }
+        .DELETE { background-color: var(--method-delete); }
+        .PUT { background-color: var(--method-put); }
+        
+        .endpoint {
+            font-family: monospace;
+            font-size: 1.1rem;
+            color: var(--accent-blue);
+            flex-grow: 1;
+        }
+        .source-location {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📖 API Endpoint Explorer</h1>
+            <p class="subtitle">System Architecture Blueprint • Auto-Generated Artifact</p>
+        </header>
+        <main>
+            <div class="route-card">
+                <span class="badge GET">GET</span>
+                <span class="endpoint">/api/v1/health</span>
+                <span class="source-location">./tests/test_parser.py</span>
+            </div>
+            <div class="route-card">
+                <span class="badge POST">POST</span>
+                <span class="endpoint">/api/v1/users</span>
+                <span class="source-location">./tests/test_parser.py</span>
+            </div>
+            <div class="route-card">
+                <span class="badge DELETE">DELETE</span>
+                <span class="endpoint">/api/v1/items/delete</span>
+                <span class="source-location">./tests/test_parser.py</span>
+            </div>
+            <div class="route-card">
+                <span class="badge GET">GET</span>
+                <span class="endpoint">/endpoint</span>
+                <span class="source-location">./src/parser.py</span>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
