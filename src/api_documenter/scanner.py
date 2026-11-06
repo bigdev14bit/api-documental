@@ -16,6 +16,7 @@ _SOURCE_SUFFIXES = {
     ".py",
     ".js",
     ".jsx",
+    ".java",
     ".go",
     ".mjs",
     ".cjs",

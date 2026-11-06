@@ -5,6 +5,7 @@ import sys
 from .adapters.express import ExpressAdapter
 from .adapters.fastapi import FastAPIAdapter
 from .adapters.gin import GinAdapter
+from .adapters.spring import SpringAdapter
 from .models import Route
 from .scanner import SourceScanner
 from .writers import write_html, write_markdown
@@ -41,6 +42,7 @@ def _scan(project: Path) -> list[Route]:
     python_adapter = FastAPIAdapter()
     express_adapter = ExpressAdapter()
     gin_adapter = GinAdapter()
+    spring_adapter = SpringAdapter()
     routes: list[Route] = []
     for source_file in SourceScanner().scan(root):
         suffix = source_file.suffix.lower()
@@ -49,6 +51,8 @@ def _scan(project: Path) -> list[Route]:
             if suffix == ".py"
             else gin_adapter
             if suffix == ".go"
+            else spring_adapter
+            if suffix == ".java"
             else express_adapter
         )
         routes.extend(adapter.parse_file(source_file, root))
