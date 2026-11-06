@@ -19,6 +19,13 @@ PYTHONPATH=src python -m api_documenter --help
 
 ## Generate documentation
 
+Run `api-doc` with no arguments in a terminal to start the interactive wizard.
+It asks for a project directory, previews detected routes, and lets you choose
+Markdown, HTML, or both and where to save the generated files. When standard
+input is not a terminal, the command prints help instead of waiting for input.
+
+The explicit scan command remains available for scripts and automation:
+
 Scan a project and write both formats into the current directory:
 
 ```sh

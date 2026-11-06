@@ -3,6 +3,7 @@ from io import StringIO
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from api_documenter.adapters.axum import AxumAdapter
 from api_documenter.adapters.express import ExpressAdapter
@@ -172,6 +173,52 @@ class TestWriters(unittest.TestCase):
 
 
 class TestCLI(unittest.TestCase):
+    def test_no_arguments_runs_interactive_wizard(self):
+        with tempfile.TemporaryDirectory() as output_dir:
+            stdout = StringIO()
+            with (
+                patch("sys.stdin.isatty", return_value=True),
+                patch(
+                    "builtins.input",
+                    side_effect=[str(FIXTURE_ROOT), "1", output_dir],
+                ),
+                redirect_stdout(stdout),
+            ):
+                result = main([])
+
+            documentation = (Path(output_dir) / "API_DOCUMENTATION.md").read_text()
+            self.assertEqual(result, 0)
+            self.assertTrue((Path(output_dir) / "API_DOCUMENTATION.md").is_file())
+            self.assertFalse((Path(output_dir) / "api_doc.html").exists())
+            self.assertIn("Detected 4 route(s)", stdout.getvalue())
+            self.assertIn("GET /health (api.py)", stdout.getvalue())
+            self.assertIn("| **GET** | `/health` | `api.py` |", documentation)
+
+    def test_no_arguments_shows_help_when_stdin_is_not_a_tty(self):
+        stdout = StringIO()
+        with (
+            patch("sys.stdin.isatty", return_value=False),
+            patch("builtins.input") as input_mock,
+            redirect_stdout(stdout),
+        ):
+            result = main([])
+
+        self.assertEqual(result, 0)
+        self.assertIn("usage: api-doc", stdout.getvalue())
+        input_mock.assert_not_called()
+
+    def test_interactive_wizard_handles_cancellation(self):
+        stderr = StringIO()
+        with (
+            patch("sys.stdin.isatty", return_value=True),
+            patch("builtins.input", side_effect=KeyboardInterrupt),
+            redirect_stderr(stderr),
+        ):
+            result = main([])
+
+        self.assertEqual(result, 130)
+        self.assertIn("api-doc: cancelled", stderr.getvalue())
+
     def test_scan_command_writes_only_the_selected_format(self):
         with tempfile.TemporaryDirectory() as output_dir:
             stdout = StringIO()
