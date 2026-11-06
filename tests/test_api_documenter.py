@@ -7,6 +7,7 @@ import unittest
 from api_documenter.adapters.express import ExpressAdapter
 from api_documenter.adapters.fastapi import FastAPIAdapter
 from api_documenter.adapters.gin import GinAdapter
+from api_documenter.adapters.spring import SpringAdapter
 from api_documenter.cli import main
 from api_documenter.models import Route
 from api_documenter.scanner import SourceScanner
@@ -15,6 +16,7 @@ from api_documenter.writers import write_html, write_markdown
 FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "fastapi_project"
 EXPRESS_FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "express_project"
 GIN_FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "gin_project"
+SPRING_FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "spring_project"
 
 
 class TestFastAPIAdapter(unittest.TestCase):
@@ -77,12 +79,40 @@ class TestGinAdapter(unittest.TestCase):
         )
 
 
+class TestSpringAdapter(unittest.TestCase):
+    def test_extracts_supported_mappings_and_skips_unresolved_forms(self):
+        routes = SpringAdapter().parse_file(
+            SPRING_FIXTURE_ROOT / "src" / "main" / "java" / "example" / "UserController.java",
+            SPRING_FIXTURE_ROOT,
+        )
+
+        self.assertEqual(
+            routes,
+            [
+                Route("GET", "/admin/users", "src/main/java/example/UserController.java"),
+                Route("GET", "/api/", "src/main/java/example/UserController.java"),
+                Route("GET", "/api/health", "src/main/java/example/UserController.java"),
+                Route("POST", "/api/items", "src/main/java/example/UserController.java"),
+                Route("PUT", "/api/items", "src/main/java/example/UserController.java"),
+                Route("POST", "/api/things", "src/main/java/example/UserController.java"),
+                Route("PUT", "/api/things", "src/main/java/example/UserController.java"),
+                Route("POST", "/api/users", "src/main/java/example/UserController.java"),
+                Route("DELETE", "/api/users/{id}", "src/main/java/example/UserController.java"),
+                Route("GET", "/api/users/{id}", "src/main/java/example/UserController.java"),
+                Route("PATCH", "/api/users/{id}", "src/main/java/example/UserController.java"),
+                Route("PUT", "/api/users/{id}", "src/main/java/example/UserController.java"),
+                Route("GET", "/restricted", "src/main/java/example/UserController.java"),
+            ],
+        )
+
+
 class TestSourceScanner(unittest.TestCase):
     def test_scans_supported_files_and_prunes_hidden_and_vendor_directories(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             (root / "app.py").touch()
             (root / "main.go").touch()
+            (root / "Controller.java").touch()
             (root / "routes.ts").touch()
             (root / "notes.txt").touch()
             (root / ".hidden").mkdir()
@@ -92,7 +122,12 @@ class TestSourceScanner(unittest.TestCase):
 
             self.assertEqual(
                 SourceScanner().scan(root),
-                [root / "app.py", root / "main.go", root / "routes.ts"],
+                [
+                    root / "Controller.java",
+                    root / "app.py",
+                    root / "main.go",
+                    root / "routes.ts",
+                ],
             )
 
 
@@ -171,6 +206,30 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(result, 0)
             self.assertIn("9 route(s)", stdout.getvalue())
             self.assertIn("| **GET** | `/api/v1/health` | `main.go` |", documentation)
+
+    def test_scan_command_generates_docs_for_spring_routes(self):
+        with tempfile.TemporaryDirectory() as output_dir:
+            stdout = StringIO()
+            with redirect_stdout(stdout):
+                result = main(
+                    [
+                        "scan",
+                        str(SPRING_FIXTURE_ROOT),
+                        "--format",
+                        "markdown",
+                        "--output-dir",
+                        output_dir,
+                    ]
+                )
+
+            documentation = (Path(output_dir) / "API_DOCUMENTATION.md").read_text()
+            self.assertEqual(result, 0)
+            self.assertIn("13 route(s)", stdout.getvalue())
+            self.assertIn(
+                "| **GET** | `/api/health` | `src/main/java/example/UserController.java` |",
+                documentation,
+            )
+            self.assertNotIn("/api/inside-a-string", documentation)
 
     def test_missing_project_returns_an_error(self):
         stderr = StringIO()
