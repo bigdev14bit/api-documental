@@ -6,6 +6,7 @@ import unittest
 
 from api_documenter.adapters.express import ExpressAdapter
 from api_documenter.adapters.fastapi import FastAPIAdapter
+from api_documenter.adapters.gin import GinAdapter
 from api_documenter.cli import main
 from api_documenter.models import Route
 from api_documenter.scanner import SourceScanner
@@ -13,6 +14,7 @@ from api_documenter.writers import write_html, write_markdown
 
 FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "fastapi_project"
 EXPRESS_FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "express_project"
+GIN_FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "gin_project"
 
 
 class TestFastAPIAdapter(unittest.TestCase):
@@ -52,11 +54,35 @@ class TestExpressAdapter(unittest.TestCase):
         )
 
 
+class TestGinAdapter(unittest.TestCase):
+    def test_extracts_supported_routes_and_resolves_literal_group_prefixes(self):
+        routes = GinAdapter().parse_file(
+            GIN_FIXTURE_ROOT / "main.go",
+            GIN_FIXTURE_ROOT,
+        )
+
+        self.assertEqual(
+            routes,
+            [
+                Route("GET", "/api/users", "main.go"),
+                Route("GET", "/api/v1/health", "main.go"),
+                Route("GET", "/health", "main.go"),
+                Route("HEAD", "/health", "main.go"),
+                Route("OPTIONS", "/health", "main.go"),
+                Route("DELETE", "/items/:id", "main.go"),
+                Route("POST", "/users", "main.go"),
+                Route("PATCH", "/users/:id", "main.go"),
+                Route("PUT", "/users/:id", "main.go"),
+            ],
+        )
+
+
 class TestSourceScanner(unittest.TestCase):
     def test_scans_supported_files_and_prunes_hidden_and_vendor_directories(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             (root / "app.py").touch()
+            (root / "main.go").touch()
             (root / "routes.ts").touch()
             (root / "notes.txt").touch()
             (root / ".hidden").mkdir()
@@ -66,7 +92,7 @@ class TestSourceScanner(unittest.TestCase):
 
             self.assertEqual(
                 SourceScanner().scan(root),
-                [root / "app.py", root / "routes.ts"],
+                [root / "app.py", root / "main.go", root / "routes.ts"],
             )
 
 
@@ -125,6 +151,26 @@ class TestCLI(unittest.TestCase):
             self.assertIn("8 route(s)", stdout.getvalue())
             self.assertIn("| **GET** | `/health` | `src/routes.ts` |", documentation)
             self.assertIn("| **POST** | `/items` | `src/routes.ts` |", documentation)
+
+    def test_scan_command_generates_docs_for_gin_routes(self):
+        with tempfile.TemporaryDirectory() as output_dir:
+            stdout = StringIO()
+            with redirect_stdout(stdout):
+                result = main(
+                    [
+                        "scan",
+                        str(GIN_FIXTURE_ROOT),
+                        "--format",
+                        "markdown",
+                        "--output-dir",
+                        output_dir,
+                    ]
+                )
+
+            documentation = (Path(output_dir) / "API_DOCUMENTATION.md").read_text()
+            self.assertEqual(result, 0)
+            self.assertIn("9 route(s)", stdout.getvalue())
+            self.assertIn("| **GET** | `/api/v1/health` | `main.go` |", documentation)
 
     def test_missing_project_returns_an_error(self):
         stderr = StringIO()

@@ -1,8 +1,9 @@
 # API Documenter
 
-API Documenter statically scans Python, JavaScript, and TypeScript source files
-and generates Markdown or HTML documentation for FastAPI and Express routes.
-It parses source without importing or executing the scanned project.
+API Documenter statically scans Python, Go, JavaScript, and TypeScript source
+files and generates Markdown or HTML documentation for FastAPI, Gin, and
+Express routes. It parses source without importing or executing the scanned
+project.
 
 ## Install
 
@@ -40,11 +41,13 @@ route scan still writes a valid document with an empty table.
 | --- | --- | --- |
 | FastAPI | `.py` | Literal-path decorators such as `@app.get("/users")`, `@router.post(path="/users")`, and `@app.api_route("/users", methods=["GET", "POST"])` |
 | Express | `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, `.cts` | Literal-path calls such as `app.get("/users", handler)`, `router.post("/users", handler)`, and `app.route("/users").get(handler).post(handler)` |
+| Gin | `.go` | Literal-path calls to `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, and `OPTIONS`; literal `Group` prefixes are resolved for simple assigned groups |
 
 FastAPI routes marked `include_in_schema=False` are omitted. Paths that need
-runtime evaluation, including variables and interpolated template literals,
-are intentionally skipped. JavaScript and TypeScript parsing is lexical and
-does not execute or import the scanned project.
+runtime evaluation, including variables and concatenated expressions, are
+intentionally skipped. JavaScript, TypeScript, and Go parsing is lexical and
+does not execute or import the scanned project. Gin groups with dynamic
+prefixes are omitted, as are routes declared through unsupported call forms.
 
 The CLI, normalized `Route` model, source scanner, framework adapter, and
 format-specific writers are separate modules so additional framework adapters
