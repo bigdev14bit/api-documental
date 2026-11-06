@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 import sys
 
+from .adapters.axum import AxumAdapter
 from .adapters.express import ExpressAdapter
 from .adapters.fastapi import FastAPIAdapter
 from .adapters.gin import GinAdapter
@@ -40,6 +41,7 @@ def _scan(project: Path) -> list[Route]:
         raise ValueError(f"project directory does not exist: {project}")
 
     python_adapter = FastAPIAdapter()
+    axum_adapter = AxumAdapter()
     express_adapter = ExpressAdapter()
     gin_adapter = GinAdapter()
     spring_adapter = SpringAdapter()
@@ -49,6 +51,8 @@ def _scan(project: Path) -> list[Route]:
         adapter = (
             python_adapter
             if suffix == ".py"
+            else axum_adapter
+            if suffix == ".rs"
             else gin_adapter
             if suffix == ".go"
             else spring_adapter
