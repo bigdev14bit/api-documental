@@ -12,6 +12,44 @@ _HTTP_METHODS = {
     "post",
     "put",
 }
+_REGEX_PREFIX_KEYWORDS = {
+    "await",
+    "case",
+    "delete",
+    "do",
+    "else",
+    "in",
+    "instanceof",
+    "new",
+    "of",
+    "return",
+    "throw",
+    "typeof",
+    "void",
+    "yield",
+}
+_REGEX_PREFIX_PUNCTUATION = {
+    "!",
+    "%",
+    "&",
+    "(",
+    "*",
+    "+",
+    ",",
+    "-",
+    "/",
+    ":",
+    ";",
+    "<",
+    "=",
+    ">",
+    "?",
+    "[",
+    "^",
+    "{",
+    "|",
+    "~",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,6 +145,14 @@ def _tokenize(source: str) -> list[_Token]:
         elif source.startswith("/*", index):
             end = source.find("*/", index + 2)
             index = len(source) if end == -1 else end + 2
+        elif char == "/" and _regex_can_start(tokens):
+            regex_end = _read_regex_literal(source, index)
+            if regex_end is not None:
+                tokens.append(_Token("regex", ""))
+                index = regex_end
+            else:
+                tokens.append(_Token("punctuation", char))
+                index += 1
         elif char in {"'", '"', "`"}:
             token, index = _read_string(source, index)
             if token is not None:
@@ -119,10 +165,49 @@ def _tokenize(source: str) -> list[_Token]:
                 end += 1
             tokens.append(_Token("identifier", source[index:end]))
             index = end
+        elif source.startswith(("++", "--"), index):
+            tokens.append(_Token("punctuation", source[index : index + 2]))
+            index += 2
         else:
             tokens.append(_Token("punctuation", char))
             index += 1
     return tokens
+
+
+def _regex_can_start(tokens: list[_Token]) -> bool:
+    if not tokens:
+        return True
+    previous = tokens[-1]
+    return (
+        previous.value in _REGEX_PREFIX_PUNCTUATION
+        or (
+            previous.kind == "identifier"
+            and previous.value in _REGEX_PREFIX_KEYWORDS
+        )
+    )
+
+
+def _read_regex_literal(source: str, start: int) -> int | None:
+    index = start + 1
+    in_character_class = False
+    while index < len(source):
+        char = source[index]
+        if char in "\r\n":
+            return None
+        if char == "\\":
+            index += 2
+            continue
+        if char == "[":
+            in_character_class = True
+        elif char == "]":
+            in_character_class = False
+        elif char == "/" and not in_character_class:
+            index += 1
+            while index < len(source) and source[index].isalpha():
+                index += 1
+            return index
+        index += 1
+    return None
 
 
 def _read_string(source: str, start: int) -> tuple[_Token | None, int]:

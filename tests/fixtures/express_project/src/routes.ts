@@ -20,3 +20,5 @@ app.get(dynamicPath, unresolvedHandler);
 // app.get("/commented-out", ignoredHandler);
 /* router.delete("/also-commented-out", ignoredHandler); */
 const example = "router.delete('/inside-a-string', ignoredHandler)";
+const routePattern = /app.get("not-a-route")/;
+const divided = routePattern / 2;
