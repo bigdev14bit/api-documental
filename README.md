@@ -1,55 +1,47 @@
-# 🛠️ Object-Oriented API Documenter
+# API Documenter
 
-An automated command-line tool that scans your backend source files, parses API routing signatures using deterministic regular expressions, and builds elegant Markdown and HTML documentation instantly. No AI API keys required.
+API Documenter statically scans Python source files and generates Markdown or
+HTML documentation for FastAPI-style routes. It parses source with Python's
+AST and never imports or executes the scanned project.
 
----
+## Install
 
-## 🎯 Why This Project Exists
-
-Writing and maintaining API documentation by hand is slow and prone to human error. This tool solves that developer headache by converting your actual routing code into documentation automatically. 
-
-By utilizing **Object-Oriented Programming (OOP)** and strict modular design, this codebase demonstrates production-level software architecture, automated testing practices, and clean CLI tooling.
-
----
-
-## 🏗️ System Architecture
-
-The application is split into highly isolated modules to maintain a strict separation of concerns:
-
-```text
-api-documenter/
-├── src/                  
-│   ├── main.py           # CLI Controller (argparse gateway)
-│   ├── scanner.py        # File Crawler (directory tree navigation)
-│   ├── parser.py         # Pattern Matcher (Regex extraction engine)
-│   └── writer.py         # Document Builder (Markdown & HTML compiler)
-└── tests/                
-    └── test_parser.py    # Automated Suite (Unit validation)
+```sh
+python -m pip install .
 ```
 
-1. **The Controller (`main.py`):** Coordinates user flags and directs the data pipeline.
-2. **The Scanner (`scanner.py`):** Safely crawls directories while filtering out junk paths like `.git` and `__pycache__`.
-3. **The Parser (`parser.py`):** Evaluates code lines deterministically using optimized regular expressions.
-4. **The Writer (`writer.py`):** Uses structured string building to compile markdown tables and clean, dark-themed HTML files.
+This installs the `api-doc` command. For development, run from the repository:
 
----
+```sh
+PYTHONPATH=src python -m api_documenter --help
+```
 
-## 🚀 Planned Features & Roadmap
+## Generate documentation
 
-- [ ] **Recursive File Scanner:** Smart traversal that skips hidden system folders.
-- [ ] **Regex Routing Parser:** Support for Python frameworks (FastAPI/Flask) and Node.js (Express).
-- [ ] **Markdown Generator:** Clean, tabular API overview summaries.
-- [ ] **Mini-Frontend Export:** Single-file standalone HTML layout with a built-in dark mode theme.
-- [ ] **Robust Test Suite:** Comprehensive edge-case handling using Python's `unittest` framework.
+Scan a project and write both formats into the current directory:
 
----
+```sh
+api-doc scan ./my-service
+```
 
-## 💻 Tech Stack & Ecosystem
+Choose a single format and/or an output directory:
 
-- **Language:** Python 🐍
-- **Core Modules:** `re` (Regular Expressions), `argparse` (CLI parsing), `os` (File System operations)
-- **Testing:** `unittest`
-- **Frontend Assets:** Core HTML5 & Semantic CSS3 for the standalone documentation layout
+```sh
+api-doc scan ./my-service --format markdown --output-dir ./docs
+api-doc scan ./my-service --format html --output-dir ./docs
+```
 
----
+The generated files are `API_DOCUMENTATION.md` and `api_doc.html`. An empty
+route scan still writes a valid document with an empty table.
 
+## Supported routes
+
+The initial adapter recognizes literal-path FastAPI-style decorators such as
+`@app.get("/users")`, `@router.post(path="/users")`, and
+`@app.api_route("/users", methods=["GET", "POST"])`. Routes marked
+`include_in_schema=False` are omitted. Dynamic paths that cannot be resolved
+without running code are intentionally skipped.
+
+The CLI, normalized `Route` model, source scanner, framework adapter, and
+format-specific writers are separate modules so additional framework adapters
+can be added without changing the output pipeline.
