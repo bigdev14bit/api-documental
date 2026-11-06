@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 import sys
 
+from .adapters.express import ExpressAdapter
 from .adapters.fastapi import FastAPIAdapter
 from .models import Route
 from .scanner import SourceScanner
@@ -36,9 +37,15 @@ def _scan(project: Path) -> list[Route]:
     if not root.is_dir():
         raise ValueError(f"project directory does not exist: {project}")
 
-    adapter = FastAPIAdapter()
+    python_adapter = FastAPIAdapter()
+    express_adapter = ExpressAdapter()
     routes: list[Route] = []
     for source_file in SourceScanner().scan(root):
+        adapter = (
+            python_adapter
+            if source_file.suffix.lower() == ".py"
+            else express_adapter
+        )
         routes.extend(adapter.parse_file(source_file, root))
     return routes
 
