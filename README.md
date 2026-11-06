@@ -1,8 +1,8 @@
 # API Documenter
 
-API Documenter statically scans Python source files and generates Markdown or
-HTML documentation for FastAPI-style routes. It parses source with Python's
-AST and never imports or executes the scanned project.
+API Documenter statically scans Python, JavaScript, and TypeScript source files
+and generates Markdown or HTML documentation for FastAPI and Express routes.
+It parses source without importing or executing the scanned project.
 
 ## Install
 
@@ -34,13 +34,17 @@ api-doc scan ./my-service --format html --output-dir ./docs
 The generated files are `API_DOCUMENTATION.md` and `api_doc.html`. An empty
 route scan still writes a valid document with an empty table.
 
-## Supported routes
+## Supported frameworks and routes
 
-The initial adapter recognizes literal-path FastAPI-style decorators such as
-`@app.get("/users")`, `@router.post(path="/users")`, and
-`@app.api_route("/users", methods=["GET", "POST"])`. Routes marked
-`include_in_schema=False` are omitted. Dynamic paths that cannot be resolved
-without running code are intentionally skipped.
+| Framework | Source files | Supported route forms |
+| --- | --- | --- |
+| FastAPI | `.py` | Literal-path decorators such as `@app.get("/users")`, `@router.post(path="/users")`, and `@app.api_route("/users", methods=["GET", "POST"])` |
+| Express | `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, `.cts` | Literal-path calls such as `app.get("/users", handler)`, `router.post("/users", handler)`, and `app.route("/users").get(handler).post(handler)` |
+
+FastAPI routes marked `include_in_schema=False` are omitted. Paths that need
+runtime evaluation, including variables and interpolated template literals,
+are intentionally skipped. JavaScript and TypeScript parsing is lexical and
+does not execute or import the scanned project.
 
 The CLI, normalized `Route` model, source scanner, framework adapter, and
 format-specific writers are separate modules so additional framework adapters

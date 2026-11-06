@@ -12,10 +12,21 @@ _IGNORED_DIRECTORIES = {
     "node_modules",
     "venv",
 }
+_SOURCE_SUFFIXES = {
+    ".py",
+    ".js",
+    ".jsx",
+    ".mjs",
+    ".cjs",
+    ".ts",
+    ".tsx",
+    ".mts",
+    ".cts",
+}
 
 
 class SourceScanner:
-    """Find Python source files while pruning common generated/vendor folders."""
+    """Find supported source files while pruning common generated/vendor folders."""
 
     def scan(self, root: Path) -> list[Path]:
         files: list[Path] = []
@@ -28,6 +39,6 @@ class SourceScanner:
             files.extend(
                 Path(current) / name
                 for name in file_names
-                if name.endswith(".py")
+                if Path(name).suffix.lower() in _SOURCE_SUFFIXES
             )
         return sorted(files)
