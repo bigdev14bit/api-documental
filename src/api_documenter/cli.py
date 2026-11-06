@@ -10,7 +10,7 @@ from .adapters.gin import GinAdapter
 from .adapters.spring import SpringAdapter
 from .models import Route
 from .scanner import SourceScanner
-from .writers import write_html, write_markdown
+from .writers import write_html, write_markdown, write_openapi
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -23,7 +23,7 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("project", type=Path, help="project directory to scan")
     scan.add_argument(
         "--format",
-        choices=("markdown", "html", "both"),
+        choices=("markdown", "html", "openapi", "both"),
         default="both",
         help="documentation format to generate (default: both)",
     )
@@ -70,16 +70,18 @@ def _write_docs(routes: list[Route], output_format: str, output_dir: Path) -> No
         write_markdown(routes, output_dir / "API_DOCUMENTATION.md")
     if output_format in {"html", "both"}:
         write_html(routes, output_dir / "api_doc.html")
+    if output_format == "openapi":
+        write_openapi(routes, output_dir / "openapi.json")
 
 
 def _prompt_output_format(input_fn: Callable[[str], str]) -> str:
-    formats = {"1": "markdown", "2": "html", "3": "both"}
-    print("Output format: 1) Markdown  2) HTML  3) Both")
+    formats = {"1": "markdown", "2": "html", "3": "openapi", "4": "both"}
+    print("Output format: 1) Markdown  2) HTML  3) OpenAPI  4) Both")
     while True:
-        choice = input_fn("Choose format [1-3, default 3]: ").strip() or "3"
+        choice = input_fn("Choose format [1-4, default 4]: ").strip() or "4"
         if choice in formats:
             return formats[choice]
-        print("Please enter 1, 2, or 3.")
+        print("Please enter 1, 2, 3, or 4.")
 
 
 def _run_wizard(input_fn: Callable[[str], str] | None = None) -> int:

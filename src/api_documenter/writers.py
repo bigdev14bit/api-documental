@@ -1,7 +1,12 @@
 from html import escape
+import json
 from pathlib import Path
+import re
 
 from .models import Route
+
+_PATH_PARAMETER = re.compile(r":([A-Za-z_][A-Za-z0-9_]*)")
+_PATH_TEMPLATE_PARAMETER = re.compile(r"\{([^{}]+)\}")
 
 
 def write_markdown(routes: list[Route], output_path: Path) -> None:
@@ -48,3 +53,60 @@ def write_html(routes: list[Route], output_path: Path) -> None:
 </html>
 """
     output_path.write_text(document, encoding="utf-8")
+
+
+def write_openapi(routes: list[Route], output_path: Path) -> None:
+    paths: dict[str, dict[str, dict[str, object]]] = {}
+    source_files: dict[tuple[str, str], set[str]] = {}
+
+    for route in routes:
+        path = _PATH_PARAMETER.sub(r"{\1}", route.path)
+        method = route.method.lower()
+        operation = paths.setdefault(path, {}).setdefault(
+            method,
+            {
+                "responses": {
+                    "default": {
+                        "description": (
+                            "Response details are not available from static analysis."
+                        )
+                    }
+                },
+                "x-api-documenter-source-files": [],
+            },
+        )
+        source_files.setdefault((path, method), set()).add(route.source_file)
+
+        parameters = [
+            {
+                "name": name,
+                "in": "path",
+                "required": True,
+                "schema": {},
+            }
+            for name in _PATH_TEMPLATE_PARAMETER.findall(path)
+        ]
+        if parameters:
+            operation["parameters"] = parameters
+
+    for path, operations in paths.items():
+        for method, operation in operations.items():
+            operation["x-api-documenter-source-files"] = sorted(
+                source_files[(path, method)]
+            )
+
+    document = {
+        "openapi": "3.1.0",
+        "info": {
+            "title": "API Documentation",
+            "version": "unknown",
+        },
+        "paths": {
+            path: dict(sorted(operations.items()))
+            for path, operations in sorted(paths.items())
+        },
+    }
+    output_path.write_text(
+        json.dumps(document, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )

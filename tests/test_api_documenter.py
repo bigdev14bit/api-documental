@@ -1,5 +1,6 @@
 from contextlib import redirect_stdout, redirect_stderr
 from io import StringIO
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -13,7 +14,7 @@ from api_documenter.adapters.spring import SpringAdapter
 from api_documenter.cli import main
 from api_documenter.models import Route
 from api_documenter.scanner import SourceScanner
-from api_documenter.writers import write_html, write_markdown
+from api_documenter.writers import write_html, write_markdown, write_openapi
 
 FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "fastapi_project"
 EXPRESS_FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "express_project"
@@ -171,6 +172,76 @@ class TestWriters(unittest.TestCase):
             self.assertIn("| :--- | :--- | :--- |", markdown_path.read_text())
             self.assertIn("&lt;item&gt;", html_path.read_text())
 
+    def test_writes_deterministic_openapi_with_paths_methods_and_sources(self):
+        routes = [
+            Route("GET", "/users/:userId", "routes.ts"),
+            Route("POST", "/users/:userId", "users.ts"),
+            Route("GET", "/items/{id}", "main.rs"),
+            Route("PUT", "/api/items/:id", "main.go"),
+            Route("GET", "/users/:userId", "routes.ts"),
+        ]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "openapi.json"
+            write_openapi(routes, output_path)
+            serialized = output_path.read_text()
+            document = json.loads(serialized)
+            write_openapi(list(reversed(routes)), output_path)
+            self.assertEqual(serialized, output_path.read_text())
+
+        self.assertEqual(document["openapi"], "3.1.0")
+        self.assertEqual(
+            document["info"],
+            {"title": "API Documentation", "version": "unknown"},
+        )
+        self.assertNotIn("servers", document)
+        self.assertEqual(
+            document["paths"]["/users/{userId}"]["get"]["parameters"],
+            [
+                {
+                    "name": "userId",
+                    "in": "path",
+                    "required": True,
+                    "schema": {},
+                }
+            ],
+        )
+        self.assertEqual(
+            document["paths"]["/items/{id}"]["get"]["parameters"][0]["name"],
+            "id",
+        )
+        self.assertEqual(
+            document["paths"]["/api/items/{id}"]["put"]["parameters"][0]["name"],
+            "id",
+        )
+        self.assertEqual(
+            document["paths"]["/users/{userId}"]["get"][
+                "x-api-documenter-source-files"
+            ],
+            ["routes.ts"],
+        )
+        self.assertEqual(
+            document["paths"]["/users/{userId}"]["post"][
+                "x-api-documenter-source-files"
+            ],
+            ["users.ts"],
+        )
+        self.assertEqual(
+            document["paths"]["/users/{userId}"]["get"]["responses"],
+            {
+                "default": {
+                    "description": (
+                        "Response details are not available from static analysis."
+                    )
+                }
+            },
+        )
+        self.assertNotIn("requestBody", document["paths"]["/users/{userId}"]["post"])
+        self.assertNotIn(
+            "content",
+            document["paths"]["/users/{userId}"]["get"]["responses"]["default"],
+        )
+
 
 class TestCLI(unittest.TestCase):
     def test_no_arguments_runs_interactive_wizard(self):
@@ -238,6 +309,85 @@ class TestCLI(unittest.TestCase):
             self.assertTrue((Path(output_dir) / "API_DOCUMENTATION.md").is_file())
             self.assertFalse((Path(output_dir) / "api_doc.html").exists())
             self.assertIn("4 route(s)", stdout.getvalue())
+
+    def test_scan_command_writes_openapi_json(self):
+        with tempfile.TemporaryDirectory() as output_dir:
+            stdout = StringIO()
+            with redirect_stdout(stdout):
+                result = main(
+                    [
+                        "scan",
+                        str(EXPRESS_FIXTURE_ROOT),
+                        "--format",
+                        "openapi",
+                        "--output-dir",
+                        output_dir,
+                    ]
+                )
+
+            output_path = Path(output_dir) / "openapi.json"
+            document = json.loads(output_path.read_text())
+            self.assertEqual(result, 0)
+            self.assertTrue(output_path.is_file())
+            self.assertFalse((Path(output_dir) / "API_DOCUMENTATION.md").exists())
+            self.assertFalse((Path(output_dir) / "api_doc.html").exists())
+            self.assertIn("8 route(s)", stdout.getvalue())
+            self.assertIn("/users/{userId}", document["paths"])
+            self.assertIn("get", document["paths"]["/health"])
+            self.assertEqual(
+                document["paths"]["/users/{userId}"]["patch"][
+                    "x-api-documenter-source-files"
+                ],
+                ["src/routes.ts"],
+            )
+
+    def test_openapi_normalizes_parameters_from_all_adapters(self):
+        with tempfile.TemporaryDirectory() as output_dir:
+            result = main(
+                [
+                    "scan",
+                    str(Path(__file__).parent / "fixtures"),
+                    "--format",
+                    "openapi",
+                    "--output-dir",
+                    output_dir,
+                ]
+            )
+
+            document = json.loads(
+                (Path(output_dir) / "openapi.json").read_text()
+            )
+
+        self.assertEqual(result, 0)
+        paths = document["paths"]
+        self.assertIn("/items/{item_id}", paths)  # FastAPI
+        self.assertIn("/items/{id}", paths)  # Axum and Gin
+        self.assertIn("/users/{id}", paths)  # Spring MVC
+        self.assertIn("/users/{userId}", paths)  # Express
+        self.assertEqual(
+            paths["/api/users/{id}"]["get"]["x-api-documenter-source-files"],
+            ["spring_project/src/main/java/example/UserController.java"],
+        )
+
+    def test_interactive_wizard_offers_openapi_output(self):
+        with tempfile.TemporaryDirectory() as output_dir:
+            stdout = StringIO()
+            with (
+                patch("sys.stdin.isatty", return_value=True),
+                patch(
+                    "builtins.input",
+                    side_effect=[str(EXPRESS_FIXTURE_ROOT), "3", output_dir],
+                ),
+                redirect_stdout(stdout),
+            ):
+                result = main([])
+
+            document = json.loads((Path(output_dir) / "openapi.json").read_text())
+            self.assertEqual(result, 0)
+            self.assertIn("3) OpenAPI", stdout.getvalue())
+            self.assertIn("/users/{userId}", document["paths"])
+            self.assertFalse((Path(output_dir) / "API_DOCUMENTATION.md").exists())
+            self.assertFalse((Path(output_dir) / "api_doc.html").exists())
 
     def test_scan_command_generates_docs_for_express_routes(self):
         with tempfile.TemporaryDirectory() as output_dir:

@@ -1,9 +1,9 @@
 # API Documenter
 
 API Documenter statically scans Python, Go, Java, JavaScript, Rust, and
-TypeScript source files and generates Markdown or HTML documentation for
-FastAPI, Axum, Gin, Spring MVC, and Express routes. It parses source without
-importing or executing the scanned project.
+TypeScript source files and generates Markdown, HTML, or OpenAPI 3.1 JSON
+documentation for FastAPI, Axum, Gin, Spring MVC, and Express routes. It parses
+source without importing or executing the scanned project.
 
 ## Install
 
@@ -21,8 +21,9 @@ PYTHONPATH=src python -m api_documenter --help
 
 Run `api-doc` with no arguments in a terminal to start the interactive wizard.
 It asks for a project directory, previews detected routes, and lets you choose
-Markdown, HTML, or both and where to save the generated files. When standard
-input is not a terminal, the command prints help instead of waiting for input.
+Markdown, HTML, OpenAPI, or both Markdown and HTML, as well as where to save the
+generated files. When standard input is not a terminal, the command prints help
+instead of waiting for input.
 
 The explicit scan command remains available for scripts and automation:
 
@@ -37,10 +38,14 @@ Choose a single format and/or an output directory:
 ```sh
 api-doc scan ./my-service --format markdown --output-dir ./docs
 api-doc scan ./my-service --format html --output-dir ./docs
+api-doc scan ./my-service --format openapi --output-dir ./docs
 ```
 
-The generated files are `API_DOCUMENTATION.md` and `api_doc.html`. An empty
-route scan still writes a valid document with an empty table.
+The generated files are `API_DOCUMENTATION.md`, `api_doc.html`, and
+`openapi.json`. The OpenAPI document includes the extracted paths, methods, and
+source-file metadata, but does not infer request or response schemas or server
+URLs. Path parameters are normalized to OpenAPI `{name}` syntax. An empty route
+scan still writes valid documents with no routes.
 
 ## Supported frameworks and routes
 
