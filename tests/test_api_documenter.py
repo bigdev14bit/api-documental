@@ -4,6 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
+from api_documenter.adapters.axum import AxumAdapter
 from api_documenter.adapters.express import ExpressAdapter
 from api_documenter.adapters.fastapi import FastAPIAdapter
 from api_documenter.adapters.gin import GinAdapter
@@ -17,6 +18,7 @@ FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "fastapi_project"
 EXPRESS_FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "express_project"
 GIN_FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "gin_project"
 SPRING_FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "spring_project"
+AXUM_FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "axum_project"
 
 
 class TestFastAPIAdapter(unittest.TestCase):
@@ -30,6 +32,28 @@ class TestFastAPIAdapter(unittest.TestCase):
                 Route("DELETE", "/items/{item_id}", "api.py"),
                 Route("GET", "/items/{item_id}", "api.py"),
                 Route("POST", "/users", "api.py"),
+            ],
+        )
+
+
+class TestAxumAdapter(unittest.TestCase):
+    def test_extracts_literal_routes_and_chained_router_variables(self):
+        routes = AxumAdapter().parse_file(
+            AXUM_FIXTURE_ROOT / "src" / "main.rs",
+            AXUM_FIXTURE_ROOT,
+        )
+
+        self.assertEqual(
+            routes,
+            [
+                Route("GET", "/", "src/main.rs"),
+                Route("GET", "/health", "src/main.rs"),
+                Route("HEAD", "/health", "src/main.rs"),
+                Route("DELETE", "/items", "src/main.rs"),
+                Route("GET", "/items", "src/main.rs"),
+                Route("POST", "/items", "src/main.rs"),
+                Route("GET", "/items/{id}", "src/main.rs"),
+                Route("PUT", "/items/{id}", "src/main.rs"),
             ],
         )
 
@@ -111,6 +135,7 @@ class TestSourceScanner(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             (root / "app.py").touch()
+            (root / "main.rs").touch()
             (root / "main.go").touch()
             (root / "Controller.java").touch()
             (root / "routes.ts").touch()
@@ -126,6 +151,7 @@ class TestSourceScanner(unittest.TestCase):
                     root / "Controller.java",
                     root / "app.py",
                     root / "main.go",
+                    root / "main.rs",
                     root / "routes.ts",
                 ],
             )
@@ -230,6 +256,27 @@ class TestCLI(unittest.TestCase):
                 documentation,
             )
             self.assertNotIn("/api/inside-a-string", documentation)
+
+    def test_scan_command_generates_docs_for_axum_routes(self):
+        with tempfile.TemporaryDirectory() as output_dir:
+            stdout = StringIO()
+            with redirect_stdout(stdout):
+                result = main(
+                    [
+                        "scan",
+                        str(AXUM_FIXTURE_ROOT),
+                        "--format",
+                        "markdown",
+                        "--output-dir",
+                        output_dir,
+                    ]
+                )
+
+            documentation = (Path(output_dir) / "API_DOCUMENTATION.md").read_text()
+            self.assertEqual(result, 0)
+            self.assertIn("8 route(s)", stdout.getvalue())
+            self.assertIn("| **GET** | `/health` | `src/main.rs` |", documentation)
+            self.assertNotIn("/dynamic", documentation)
 
     def test_missing_project_returns_an_error(self):
         stderr = StringIO()

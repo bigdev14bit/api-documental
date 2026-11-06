@@ -14,6 +14,7 @@ _IGNORED_DIRECTORIES = {
 }
 _SOURCE_SUFFIXES = {
     ".py",
+    ".rs",
     ".js",
     ".jsx",
     ".java",
